@@ -955,10 +955,10 @@ static struct omap_device_pm_latency omap_gpu_latency[] = {
 	},
 };
 
-static struct platform_device omap_omaplfb_device = {
+/*static struct platform_device omap_omaplfb_device = {
 	.name		= "omaplfb",
 	.id		= -1,
-};
+};*/ //already in drivers/gpu/pvr/omaplfb/
 
 
 static void omap_init_gpu(void)
@@ -1006,7 +1006,8 @@ static void omap_init_gpu(void)
 	     name, oh_name);
 
 	kfree(pdata);
-	platform_device_register(&omap_omaplfb_device);
+
+	//platform_device_register(&omap_omaplfb_device);
 }
 
 /*-------------------------------------------------------------------------*/

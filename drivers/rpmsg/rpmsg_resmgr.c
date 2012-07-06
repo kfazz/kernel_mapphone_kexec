@@ -372,6 +372,8 @@ static int rprm_gpio_request(struct rprm_elem *e, struct rprm_gpio *obj)
 	if (!gd)
 		return -ENOMEM;
 
+	printk("RPMSG Gpio request %d\n",obj->id);
+
 	ret = gpio_request(obj->id , "rpmsg_resmgr");
 	if (ret) {
 		pr_err("%s: error providing gpio %d\n", __func__, obj->id);

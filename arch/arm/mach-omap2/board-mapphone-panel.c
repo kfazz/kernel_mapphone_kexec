@@ -448,7 +448,9 @@ static struct omapfb_platform_data mapphone_fb_data = {
 
 static struct omap_dss_device *mapphone_dss_devices[] = {
 	&mapphone_lcd_device,
+#ifdef CONFIG_PANEL_MAPPHONE_OMAP4_HDTV
 	&mapphone_hdtv_device,
+#endif
 };
 
 static struct omap_dss_board_info mapphone_dss_data = {
