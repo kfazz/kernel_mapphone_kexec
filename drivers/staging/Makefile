@@ -75,5 +75,5 @@ obj-$(CONFIG_MFD_NVEC)		+= nvec/
 obj-$(CONFIG_THERMAL_FRAMEWORK) += thermal_framework/
 obj-y				+= motorola/
 obj-$(CONFIG_MID_SAFE_MODE_HELPER)     += ste-modem/
-obj-$(CONFIG_TI_ST)		+= ti-st/
 obj-$(CONFIG_RPC_OMAP)		+= omaprpc/
+obj-$(CONFIG_ST_FM)		+= ti-st/
