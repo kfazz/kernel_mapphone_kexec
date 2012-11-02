@@ -384,7 +384,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		 * Enable the local timer or broadcast device for the
 		 * boot CPU, but only if we have more than one CPU.
 		 */
-//TODO: fubar	
 		percpu_timer_setup();
 
 		/*
@@ -467,16 +466,26 @@ static void ipi_timer(void)
 asmlinkage void __exception_irq_entry do_local_timer(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	printk(KERN_ERR "do_local_timer::OLD_regs = %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu\n",
+		old_regs->uregs[0], old_regs->uregs[1], old_regs->uregs[2], old_regs->uregs[3], old_regs->uregs[4], old_regs->uregs[5],
+		old_regs->uregs[6], old_regs->uregs[7], old_regs->uregs[8], old_regs->uregs[9], old_regs->uregs[10], old_regs->uregs[11],
+		old_regs->uregs[12], old_regs->uregs[13], old_regs->uregs[14], old_regs->uregs[15], old_regs->uregs[16], old_regs->uregs[17]);
+
+	printk(KERN_ERR "do_local_timer::NEW_regs = %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu, %lu\n",
+		regs->uregs[0], regs->uregs[1], regs->uregs[2], regs->uregs[3], regs->uregs[4], regs->uregs[5],
+		regs->uregs[6], regs->uregs[7], regs->uregs[8], regs->uregs[9], regs->uregs[10], regs->uregs[11],
+		regs->uregs[12], regs->uregs[13], regs->uregs[14], regs->uregs[15], regs->uregs[16], regs->uregs[17]);
+
 	int cpu = smp_processor_id();
+
+	printk(KERN_ERR "do_local_timer::cpuid = %d\n", cpu);
 
 	if (local_timer_ack()) {
 		__inc_irq_stat(cpu, local_timer_irqs);
-		if(irq_enter)
-			irq_enter();
-		if(ipi_timer)
-			ipi_timer();
-		if(irq_exit)
-			irq_exit();
+		irq_enter();
+		ipi_timer();
+		irq_exit();
 	}
 
 	set_irq_regs(old_regs);
@@ -525,6 +534,8 @@ static void __cpuinit broadcast_timer_setup(struct clock_event_device *evt)
 void __cpuinit percpu_timer_setup(void)
 {
 	unsigned int cpu = smp_processor_id();
+	printk(KERN_ERR "percpu_timer_setup::cpu==%d\n", cpu);
+
 	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
 
 	evt->cpumask = cpumask_of(cpu);

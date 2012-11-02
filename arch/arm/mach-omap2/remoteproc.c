@@ -25,7 +25,6 @@
 #include <plat/remoteproc.h>
 #include <plat/dsp.h>
 #include <plat/io.h>
-#include <plat/common.h>
 #include "cm2_44xx.h"
 #include "cm-regbits-44xx.h"
 
@@ -128,15 +127,6 @@ static int __init omap_rproc_init(void)
 		const char *oh_name = omap4_rproc_data[i].oh_name;
 		const char *oh_name_opt = omap4_rproc_data[i].oh_name_opt;
 		oh_count = 0;
-
-        if (omap_total_ram_size() == SZ_512M) {
-                  if (!strcmp("ipu", omap4_rproc_data[i].name))
-                       omap4_rproc_data[i].firmware =
-                                  "ducati-m3.512MB.bin";
-        else if (!strcmp("dsp", omap4_rproc_data[i].name))
-                         omap4_rproc_data[i].firmware =
-                              "tesla-dsp.512MB.bin";
-        }
 
 		oh[0] = omap_hwmod_lookup(oh_name);
 		if (!oh[0]) {

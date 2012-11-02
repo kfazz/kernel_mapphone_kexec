@@ -135,7 +135,6 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 	} else {
 		clkdm_init_mpu1(cpu1_clkdm);
-
 		dsb_sev();
 		booted = true;
 	}
@@ -163,7 +162,6 @@ static void __init wakeup_secondary(void)
 	 */
 	omap_auxcoreboot_addr(virt_to_phys(omap_secondary_startup));
 	smp_wmb();
-
 	sar_base  = ioremap(OMAP44XX_SAR_RAM_BASE, SZ_16K);
 	__raw_writel(virt_to_phys(omap_secondary_startup),
 			sar_base + CPU1_WAKEUP_NS_PA_ADDR_OFFSET);

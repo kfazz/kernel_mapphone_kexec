@@ -294,7 +294,7 @@ void clkdm_init(struct clockdomain **clkdms,
 	 */
 	list_for_each_entry(clkdm, &clkdm_list, node) {
 		printk("clkdm: %s\n", clkdm->name);
-		if(strncmp("mpu1_clkdm",clkdm->name,4)==0)
+		if(strncmp("mpu1_clkdm", clkdm->name, 10)==0)
 		{
 			printk("Skipping mpu1\n");
 			continue;
@@ -317,7 +317,7 @@ void clkdm_init(struct clockdomain **clkdms,
 void clkdm_init_mpu1(struct clockdomain *clkdm)
 {
 	printk("clkdm: %s\n", clkdm->name);
-	
+
 	if (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)
 		clkdm_wakeup(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_DISABLE_AUTO)
