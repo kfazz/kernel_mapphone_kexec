@@ -647,10 +647,10 @@ static int __init clk_disable_unused(void)
 		if (ck->ops == &clkops_null)
 			continue;
 
-#ifdef CONFIG_EMU_UART_DEBUG
+//#ifdef CONFIG_EMU_UART_DEBUG
 		if (strncmp(ck->name, "uart3_fck", 9) == 0)
 			continue;
-#endif
+//#endif
 
 		spin_lock_irqsave(&clockfw_lock, flags);
 		if (!(ck->usecount > 0 || !ck->enable_reg))
