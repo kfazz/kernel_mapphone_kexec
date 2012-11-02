@@ -647,12 +647,16 @@ static int __init clk_disable_unused(void)
 		if (ck->ops == &clkops_null)
 			continue;
 
+#ifdef CONFIG_EMU_UART_DEBUG
+		if (strncmp(ck->name, "uart3_fck", 9) == 0)
+			continue;
+#endif
+
 		spin_lock_irqsave(&clockfw_lock, flags);
 		if (!(ck->usecount > 0 || !ck->enable_reg))
 		{
 			printk("Disabling clock: %s\n", ck->name);
-			//TODO: disabled because of trouble
-			//arch_clock->clk_disable_unused(ck);
+			arch_clock->clk_disable_unused(ck);
 		}
 		spin_unlock_irqrestore(&clockfw_lock, flags);
 	}
