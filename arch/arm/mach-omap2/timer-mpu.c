@@ -29,12 +29,11 @@
 int __cpuinit local_timer_setup(struct clock_event_device *evt)
 {
 	/* Local timers are not supprted on OMAP4430 ES1.0 */
-//	if (omap_rev() == OMAP4430_REV_ES1_0)
+	if (omap_rev() == OMAP4430_REV_ES1_0)
 		return -ENXIO;
 
 	evt->irq = OMAP44XX_IRQ_LOCALTIMER;
 	twd_timer_setup(evt);
-//TODO: i can't make these work right yet. so pretend we don't support them
-	return -ENXIO;
+	return 0;
 }
 
