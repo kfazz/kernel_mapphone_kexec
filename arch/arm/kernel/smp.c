@@ -446,7 +446,12 @@ static void ipi_timer(void)
 {
 	struct clock_event_device *evt = &__get_cpu_var(percpu_clockevent);
 	irq_enter();
-	evt->event_handler(evt);
+	if (evt->event_handler == NULL) {
+		printk(KERN_ERR "ipi_timer::evt(%lu)->event_handler==NULL\n", evt);
+	}
+	else {
+		evt->event_handler(evt);
+	}
 	irq_exit();
 }
 
