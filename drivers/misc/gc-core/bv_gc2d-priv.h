@@ -1,5 +1,5 @@
 /*
- * gcbv-priv.h
+ * bv_gc2d-priv.h
  *
  * Copyright (C) 2011, Texas Instruments, Inc.
  *
@@ -12,16 +12,18 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef GCBV_PRIV
-#define GCBV_PRIV
+#ifndef BLTVILLE_BVGC2D_PRIV
+#define BLTVILLE_BVGC2D_PRIV
 
 #include <linux/bltsville.h>
 #include <linux/gccore.h>
 
-enum bverror gcbv_map(struct bvbuffdesc *buffdesc);
-enum bverror gcbv_unmap(struct bvbuffdesc *buffdesc);
-enum bverror gcbv_blt(struct bvbltparams *bltparams);
-void gcbv_assign(void);
-void gcbv_clear(void);
+enum bverror bv_gc2d_map(struct bvbuffdesc *buffdesc);
+enum bverror bv_gc2d_unmap(struct bvbuffdesc *buffdesc);
+enum bverror bv_gc2d_blt(struct bvbltparams *bltparams);
+void bv_gc2d_fillentry(void);
+void bv_gc2d_clearentry(void);
+int bv_gc2d_init(void);
+int bv_gc2d_exit(void);
 
 #endif

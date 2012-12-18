@@ -1076,10 +1076,14 @@ CONFIG_WRIGLEY_CTRL=y
 # Motorola TS 27.010 Mux driver
 #
 CONFIG_MOT_FEAT_TS27010MUX=y
+<<<<<<< HEAD
 CONFIG_GCCORE=y
 CONFIG_GCIOCTL=y
 CONFIG_GCBV=y
 CONFIG_CACHE2DMANAGER=y
+=======
+# CONFIG_GC_CORE is not set
+>>>>>>> parent of a57485a... bltsville update
 CONFIG_HAVE_IDE=y
 # CONFIG_IDE is not set
 
