@@ -374,6 +374,24 @@ static int rprm_gpio_request(struct rprm_elem *e, struct rprm_gpio *obj)
 
 	printk("RPMSG Gpio request %d\n",obj->id);
 
+
+	/*FIXME Identify proper gpio numbers to override. */
+
+	/*if (obj->id==171) {
+		printk("Overriding Gpio. requested 171, sending 151\n");
+		obj->id=151;
+	}*/
+
+	if (obj->id==121) {
+		printk("Overriding Gpio. requested 121, sending 151\n");
+		obj->id=151;
+	}
+
+	if (obj->id==33) {
+		printk("Overriding Gpio. requested 33, sending 37\n");
+		obj->id=37;
+	}
+
 	ret = gpio_request(obj->id , "rpmsg_resmgr");
 	if (ret) {
 		pr_err("%s: error providing gpio %d\n", __func__, obj->id);

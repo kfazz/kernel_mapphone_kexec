@@ -96,7 +96,7 @@ void __init omap_ion_init(void)
 	system_512m = (omap_total_ram_size() == SZ_512M);
 
 	/* carveout sizes */
-	omap4_smc_size = (SZ_1M * 2);
+	omap4_smc_size = (SZ_1M * 3);//was 2 -kfazz
 	
 	if (system_512m) {
 		omap4_ion_heap_secure_input_size = 0;
