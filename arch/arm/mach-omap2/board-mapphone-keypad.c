@@ -206,7 +206,7 @@ static struct platform_device mapphone_switch_device = {
 
 static struct platform_device mapphone_gpiokey_device = {
 	.name = GPIO_EVENT_DEV_NAME,
-	.id = 0,
+	.id = 1,
 	.dev	    = {
 		.platform_data  = &mapphone_gpiokey_data,
 	},
@@ -299,6 +299,7 @@ static int __init mapphone_init_keypad(void)
 		mapphone_switch_info[1] = &mapphone_switch_input_info.info;
 		array_size = 2;
 
+	//is_gpiokey_found = 0; //killed by kfazz. only seems to produce errors.
 		if (is_gpiokey_found)
 			mapphone_switch_info[array_size++] =
 					&mapphone_gpiokey_input_info.info;
