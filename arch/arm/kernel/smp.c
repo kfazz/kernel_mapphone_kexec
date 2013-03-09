@@ -384,7 +384,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		 * Enable the local timer or broadcast device for the
 		 * boot CPU, but only if we have more than one CPU.
 		 */
-//TODO: fubar	
 		percpu_timer_setup();
 
 		/*

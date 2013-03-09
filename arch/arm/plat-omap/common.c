@@ -15,13 +15,13 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/omapfb.h>
+#include <asm/setup.h>
 
 #include <plat/common.h>
 #include <plat/board.h>
 #include <plat/vram.h>
 #include <plat/dsp.h>
 #include <plat/remoteproc.h>
-#include <asm/setup.h>
 
 #define NO_LENGTH_CHECK 0xffffffff
 
@@ -76,10 +76,12 @@ void omap_init_ram_size(void)
 
        for (i = 0; i < meminfo.nr_banks; i++)
                omap4_total_ram_size += meminfo.bank[i].size;
+
+	//hack for maserati, TODO ifdef 
+	omap4_total_ram_size = SZ_1G;
 }
 
 phys_addr_t omap_total_ram_size(void)
 {
        return omap4_total_ram_size;
 }
-

@@ -84,6 +84,9 @@ u32 g_service_end;
 #define API_HAL_HWATURNOFF_INDEX                0x29
 #define API_HAL_ACTIVATEHWAPWRMGRPATCH_INDEX    0x2A
 
+#define API_HAL_MOT_GET_VERSION			1011
+#define API_HAL_MOT_GET_VERSION_RET_VALUE_OK	164
+
 #define API_HAL_RET_VALUE_OK	0x0
 
 /* SE entry flags */
@@ -666,6 +669,7 @@ int tf_start(struct tf_comm *comm,
 	u32 descr;
 	u32 sdp_backing_store_addr;
 	u32 sdp_bkext_store_addr;
+	u32 ppa_version = 0;
 #ifdef CONFIG_SMP
 	long ret_affinity;
 	cpumask_t saved_cpu_mask;
@@ -790,6 +794,22 @@ int tf_start(struct tf_comm *comm,
 
 	/* Workaround for issue #6081 */
 	disable_nonboot_cpus();
+
+	/*
+	* Checking the PPA version, if ppa version return value will be
+	* 164 then PPA is valid otherwise restarting the device
+	*/
+	ppa_version = omap4_secure_dispatcher(API_HAL_MOT_GET_VERSION,
+				FLAG_START_HAL_CRITICAL, 0, 0, 0, 0, 0);
+	pr_info("SMC: PPA SW Version [%d]\n", ppa_version);
+	if (ppa_version != API_HAL_MOT_GET_VERSION_RET_VALUE_OK) {
+		pr_err("SMC ERROR: This PPA SW version [%d] is not "
+			"compatible with this driver release. "
+			"Please flash the latest mbmloader.bin\n",
+			ppa_version);
+		ret = -EL3RST;
+		goto error2;
+	}
 
 	/*
 	 * Start the SMC PA

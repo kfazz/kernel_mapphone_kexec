@@ -170,6 +170,4 @@ source "drivers/staging/ste-modem/Kconfig"
 
 source "drivers/staging/ti-st/Kconfig"
 
-source "drivers/staging/omaprpc/Kconfig"
-
 endif # STAGING

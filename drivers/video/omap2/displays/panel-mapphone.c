@@ -23,12 +23,6 @@
 #include "panel-mapphone-d2l.h"
 #include "../dss/dss.h"
 
-/* Define this Macro for factory board level test only */
-
-#ifdef CONFIG_BARE_DISPLAY
-#define FACTORY_BOARD_TEST
-#endif
-
 /*#define DEBUG 1*/
 
 #ifdef DEBUG
@@ -387,7 +381,6 @@ static void mapphone_esd_work(struct work_struct *work)
 	mutex_unlock(&mp_data->lock);
 	return;
 err:
-#ifndef FACTORY_BOARD_TEST
 	dev_err(&dssdev->dev, "ESD: performing LCD reset\n");
 	printk(KERN_INFO"ESD: mapphone_panel_power_off.\n");
 	mapphone_panel_power_off(dssdev, false);
@@ -395,7 +388,6 @@ err:
 	mdelay(20);
 	printk(KERN_INFO"ESD: mapphone_panel_power_on.\n");
 	r = mapphone_panel_power_on(dssdev);
-#endif
 	/*
 	 * dssdev->state and panel_data->state was set to DISABLED/OFF in
 	 * mapphone_panel_power_off(), after power_on(), need to set
@@ -475,11 +467,7 @@ static int mapphone_set_update_window(struct mapphone_data *mp_data,
 
 	return 0;
 err:
-#ifndef FACTORY_BOARD_TEST
 	return ret;
-#else
-	return 0;
-#endif
 
 }
 /*TODO: remove this later*/
@@ -493,7 +481,7 @@ static int mapphone_panel_update(struct omap_dss_device *dssdev,
 {
 	struct mapphone_data *mp_data = dev_get_drvdata(&dssdev->dev);
 	struct mapphone_dsi_panel_data *panel_data = get_panel_data(dssdev);
-	int r, rr = 0;
+	int r;
 
 	DBG("update %d, %d, %d x %d\n", x, y, w, h);
 
@@ -502,7 +490,7 @@ static int mapphone_panel_update(struct omap_dss_device *dssdev,
 	dsi_runtime_get();
 
 	if (!mp_data->enabled) {
-		r = 0;
+		r = -ENODEV;
 		goto err;
 	}
 
@@ -512,10 +500,9 @@ static int mapphone_panel_update(struct omap_dss_device *dssdev,
 
 	if (dssdev->phy.dsi.type == OMAP_DSS_DSI_TYPE_CMD_MODE) {
 		/* Only command mode can do partial update */
-		rr = mapphone_set_update_window(mp_data, x, y, w, h);
-		if (rr)
-			dev_err(&dssdev->dev,
-				"mapphone_set_update_window failed:%d\n", rr);
+		r = mapphone_set_update_window(mp_data, x, y, w, h);
+		if (r)
+			goto err;
 	}
 
 	if (mp_data->te_enabled && panel_data->use_ext_te &&
@@ -543,7 +530,7 @@ static int mapphone_panel_update(struct omap_dss_device *dssdev,
 	/* note: no bus_unlock here. unlock is in framedone_cb */
 	mutex_unlock(&mp_data->lock);
 
-	return rr;
+	return 0;
 err:
 	dsi_runtime_put();
 	dsi_bus_unlock(dssdev);
@@ -3875,9 +3862,7 @@ static int mapphone_panel_power_on(struct omap_dss_device *dssdev)
 		printk(KERN_WARNING "%s:Panel is not attached or \
 				 failed to send BTA.\n", __func__);
 		ret = -EINVAL;
-#ifndef FACTORY_BOARD_TEST
 		goto err0;
-#endif
 	}
 
 	switch (dssdev->panel.panel_id) {
@@ -3921,10 +3906,8 @@ static int mapphone_panel_power_on(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-#ifndef FACTORY_BOARD_TEST
 	if (ret)
 		goto err;
-#endif
 
 	panel_init_state = MAPPHONE_PANEL_INIT_DONE;
 
@@ -3941,9 +3924,7 @@ static int mapphone_panel_power_on(struct omap_dss_device *dssdev)
 				printk(KERN_ERR "Failed to read "
 					"'get_power_mode' first time\n");
 				ret = -EINVAL;
-#ifndef FACTORY_BOARD_TEST
 				goto err;
-#endif
 			}
 
 			/*Set the panel state to on if the display reports
@@ -4246,11 +4227,7 @@ static int mapphone_panel_enable_te_locked(struct omap_dss_device *dssdev,
 	r = omapdss_dsi_enable_te(dssdev, enable, panel_data->te_type);
 
 error:
-#ifndef FACTORY_BOARD_TEST
 	return r;
-#else
-	return 0;
-#endif
 }
 
 static int mapphone_panel_enable_te(struct omap_dss_device *dssdev, bool enable)

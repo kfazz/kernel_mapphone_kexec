@@ -801,7 +801,7 @@ u32 tf_crypto_turn_off_clocks(void)
 	spin_unlock_irqrestore(&clk_lock, flags);
 
 	if (ret == 0xff)
-		printk("Error calling API_HAL_HWATURNOFF_INDEX");
+		panic("Error calling API_HAL_HWATURNOFF_INDEX");
 
 	return ret;
 }

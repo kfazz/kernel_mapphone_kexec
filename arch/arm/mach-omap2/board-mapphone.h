@@ -40,12 +40,16 @@ void __init mapphone_gpio_mapping_init(void);
 void __init mapphone_touch_panel_init(struct i2c_board_info *i2c_info);
 void __init mapphone_touch_btn_init(struct i2c_board_info *i2c_info);
 void __init mapphone_panel_init(void);
+
 extern void __init mapphone_vibrator_init(void);
 extern void __init mapphone_usb_init(void);
 extern void __init mapphone_gadget_init(char *boot_mode);
 extern void __init mapphone_usbhost_init(void);
 extern int __init mapphone_mdm_ctrl_init(void);
 extern struct attribute_group *mapphone_touch_vkey_prop_attr_group;
+
+struct omap_ion_platform_data;
+void mapphone_android_display_setup(struct omap_ion_platform_data *ion);
 
 #define BOOT_MODE_MAX_LEN 30
 

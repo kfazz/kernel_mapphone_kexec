@@ -42,7 +42,7 @@ static size_t omap4_ion_heap_tiler_mem_size;
 static size_t omap4_ion_heap_nonsec_tiler_mem_size;
 
 static struct ion_platform_data omap4_ion_data = {
-	.nr = 3, //TODO: until we enable the others
+	.nr = 4,
 	.heaps = {
 		{
 			.type = ION_HEAP_TYPE_CARVEOUT,
@@ -58,17 +58,11 @@ static struct ion_platform_data omap4_ion_data = {
 			.id = OMAP_ION_HEAP_NONSECURE_TILER,
 			.name = "nonsecure_tiler",
 		},
-//TODO:
-/*		{
+		{
 			.type = ION_HEAP_TYPE_SYSTEM,
 			.id = OMAP_ION_HEAP_SYSTEM,
 			.name = "system",
-		},
-		{
-			.type = OMAP_ION_HEAP_TYPE_TILER_RESERVATION,
-			.id = OMAP_ION_HEAP_TILER_RESERVATION,
-			.name = "tiler_reservation",
-		},*/
+		}
 	},
 };
 
@@ -98,22 +92,30 @@ void __init omap_ion_init(void)
 {
 	int i;
 	int ret;
-	u32 nonsecure = omap4_ion_pdata.nonsecure_tiler2d_size;
 
-	system_512m = 0; //(omap_total_ram_size() == SZ_512M);
+	system_512m = (omap_total_ram_size() == SZ_512M);
 
 	/* carveout sizes */
-	omap4_smc_size = (SZ_1M * 3);
-
+	omap4_smc_size = (SZ_1M * 2);
 	
+	if (system_512m) {
+		omap4_ion_heap_secure_input_size = 0;
+		omap4_ducati_heap_size = (SZ_1M * 83);
+		omap4_ion_heap_nonsec_tiler_mem_size = 0;
+		omap4_ion_heap_tiler_mem_size = 0;
+        } else {
 		omap4_ion_heap_secure_input_size = (SZ_1M * 20);
 		omap4_ducati_heap_size = (SZ_1M * 128);
-		omap4_ion_heap_nonsec_tiler_mem_size = (SZ_4K);
-		omap4_ion_heap_tiler_mem_size =
-					 (SZ_4K);
+                /* Reducing carveout sizes used by ION. The expectation is
+                 * the memory will be dynamically allocated for tiler
+                 * instead of being carveout at start
+                 */
+                omap4_ion_heap_nonsec_tiler_mem_size = SZ_4K;
+                omap4_ion_heap_tiler_mem_size = SZ_4K;
+        }
 
 	/* carveout addresses */
-	omap4_smc_addr = PLAT_PHYS_OFFSET + SZ_1G -
+	omap4_smc_addr = PLAT_PHYS_OFFSET + omap_total_ram_size() -
 				omap4_smc_size;
 	omap4_ion_heap_secure_input_addr = omap4_smc_addr -
 				omap4_ion_heap_secure_input_size;
@@ -130,7 +132,7 @@ void __init omap_ion_init(void)
 				"omap4_ducati_heap_size = 0x%x\n"  \
 				"omap4_ion_heap_tiler_mem_size = 0x%x\n"  \
 				"omap4_ion_heap_nonsec_tiler_mem_size  = 0x%x\n",
-				SZ_1G,
+				omap_total_ram_size(),
 				omap4_smc_size,
 				omap4_ion_heap_secure_input_size,
 				omap4_ducati_heap_size,
@@ -172,11 +174,25 @@ void __init omap_ion_init(void)
 					h->base, h->base + h->size, h->size);
 	}
 
+#ifndef CONFIG_OMAP_RAM_CONSOLE
+	/* XXX this appears to be extraneous; need to follow up with TI */
+	memblock_remove(OMAP4_RAMCONSOLE_START, OMAP4_RAMCONSOLE_SIZE);
+	pr_debug("%s: RAMCONSOLE size=%dMB, addr=0x%x\n",
+		__func__, (OMAP4_RAMCONSOLE_SIZE >> 20),
+		(unsigned int)OMAP4_RAMCONSOLE_START);
+#endif
+
 	for (i = 0; i < omap4_ion_data.nr; i++)
 		if (omap4_ion_data.heaps[i].type == ION_HEAP_TYPE_CARVEOUT ||
 		    omap4_ion_data.heaps[i].type == OMAP_ION_HEAP_TYPE_TILER) {
 			ret = memblock_remove(omap4_ion_data.heaps[i].base,
 					      omap4_ion_data.heaps[i].size);
+
+			pr_debug("%s: ion_heap[%d] name=%s, size=%dMB, addr=0x%lx\n",
+				__func__, i, omap4_ion_data.heaps[i].name,
+				(omap4_ion_data.heaps[i].size >> 20),
+				omap4_ion_data.heaps[i].base);
+
 			if (!omap4_ion_data.heaps[i].size)
 				continue;
 			if (ret)

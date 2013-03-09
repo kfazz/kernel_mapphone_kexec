@@ -36,7 +36,6 @@
 #include <plat/clock.h>
 #include "../../../arch/arm/mach-omap2/board-mapphone.h"
 
-#define ABE_BYPASS
 #define MOTSND_CONFIG_ENABLE_ABE
 #define MOTSND_CONFIG_ENABLE_SPDIF
 
@@ -501,20 +500,7 @@ struct snd_soc_dsp_link fe_lp_media = {
 
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link motsnd_dai[] = {
-//#ifdef MOTSND_CONFIG_ENABLE_ABE
-#ifdef ABE_BYPASS
-{
-	.name = "Multimedia",
-	.stream_name = "McBSP2-STDac",
-	.cpu_dai_name = "omap-mcbsp-dai.1",
-	.codec_dai_name = "cpcap stdac",
-	.platform_name = "omap-pcm-audio",
-	.codec_name = "cpcap_audio",
-	.init = motsnd_cpcap_init,
-	.ops = &motsnd_ops,
-	.ignore_suspend = 1,
-},
-#endif
+#ifdef MOTSND_CONFIG_ENABLE_ABE
 {
 	.name = "Multimedia LP",
 	.stream_name = "Multimedia",
@@ -527,9 +513,19 @@ static struct snd_soc_dai_link motsnd_dai[] = {
 //	.fe_playback_channels = 2,
 	.ignore_suspend = 1,
 },
-//#else
-
-//#endif /*ENABLE_ABE*/
+#else
+{
+	.name = "Multimedia",
+	.stream_name = "McBSP2-STDac",
+	.cpu_dai_name = "omap-mcbsp-dai.1",
+	.codec_dai_name = "cpcap stdac",
+	.platform_name = "omap-pcm-audio",
+	.codec_name = "cpcap_audio",
+	.init = motsnd_cpcap_init,
+	.ops = &motsnd_ops,
+	.ignore_suspend = 1,
+},
+#endif /*ENABLE_ABE*/
 {
 	.name = "Voice",
 	.stream_name = "McBSP3-Codec",
@@ -608,22 +604,6 @@ static struct snd_soc_dai_link motsnd_dai[] = {
 	.ops = &motsnd_bpvoice_ops,
 	.ignore_suspend = 1,
 },
-
-#ifdef ABE_BYPASS
-{
-	.name = "Multimedia LP",
-	.stream_name = "Multimedia",
-	.cpu_dai_name = "MultiMedia1 LP",
-	.platform_name = "aess",
-	.dynamic = 1,
-	.dsp_link = &fe_lp_media,
-//	.supported_be = mm1_be,
-//	.num_be = ARRAY_SIZE(mm1_be),
-//	.fe_playback_channels = 2,
-	.ignore_suspend = 1,
-},
-#endif
-
 #ifdef MOTSND_CONFIG_ENABLE_ABE
 {
 	.name = OMAP_ABE_BE_MM_EXT0,

@@ -1352,33 +1352,31 @@ static void __init mapphone_map_io(void)
 }
 static void __init mapphone_reserve(void)
 {
-#ifdef CONFIG_ION_OMAP_DYNAMIC
-	/* do the static reservations first */
-	memblock_remove(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE);
+	omap_init_ram_size();//broken on maserati, returns 0 -kfazz
 
-	/* ipu needs to recognize secure input buffer area as well */
-	omap_ipu_set_static_mempool(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE);
+#ifdef CONFIG_ION_OMAP
+	mapphone_android_display_setup(get_omap_ion_platform_data());
+	omap_ion_init();
 #else
+	mapphone_android_display_setup(NULL);
+#endif
+
+	omap_ram_console_init(OMAP4_RAMCONSOLE_START,
+			OMAP4_RAMCONSOLE_SIZE);
+
 	/* do the static reservations first */
 	memblock_remove(PHYS_ADDR_SMC_MEM, PHYS_ADDR_SMC_SIZE);
-printk("%s: SMC size=%dMB, addr=0x%x\n",
+	pr_debug("%s: SMC size=%dMB, addr=0x%x\n",
 		__func__, (PHYS_ADDR_SMC_SIZE >> 20), PHYS_ADDR_SMC_MEM);
 
 	memblock_remove(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE);
-printk("%s: DUCATI Memory size=%dMB, addr=0x%x\n",
+	pr_debug("%s: DUCATI Memory size=%dMB, addr=0x%x\n",
 		__func__, (PHYS_ADDR_DUCATI_SIZE >> 20), PHYS_ADDR_DUCATI_MEM);
 
 	/* ipu needs to recognize secure input buffer area as well */
-	omap_ipu_set_static_mempool(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE + OMAP4_ION_HEAP_SECURE_INPUT_SIZE);
-#endif
-#ifdef CONFIG_OMAP_REMOTE_PROC_DSP
-	memblock_remove(PHYS_ADDR_TESLA_MEM, PHYS_ADDR_TESLA_SIZE);
-	omap_dsp_set_static_mempool(PHYS_ADDR_TESLA_MEM, PHYS_ADDR_TESLA_SIZE);
-#endif
+	omap_ipu_set_static_mempool(PHYS_ADDR_DUCATI_MEM, PHYS_ADDR_DUCATI_SIZE +
+					OMAP4_ION_HEAP_SECURE_INPUT_SIZE);
 
-#ifdef CONFIG_ION_OMAP
-	omap_ion_init();
-#endif
 	omap_reserve();
 }
 

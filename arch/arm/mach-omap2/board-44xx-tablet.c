@@ -40,6 +40,7 @@
 #include <mach/omap4-common.h>
 #include <mach/emif.h>
 #include <mach/lpddr2-elpida.h>
+#include <mach/omap4_ion.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -63,7 +64,6 @@
 #include "prm-regbits-44xx.h"
 #include "prm44xx.h"
 #include "board-44xx-tablet.h"
-#include "omap4_ion.h"
 #include "omap_ram_console.h"
 
 #define WILINK_UART_DEV_NAME	"/dev/ttyO1"
@@ -1163,6 +1163,8 @@ static void __init omap_tablet_map_io(void)
 
 static void __init omap_tablet_reserve(void)
 {
+
+	omap_init_ram_size();
 	omap_ram_console_init(OMAP_RAM_CONSOLE_START_DEFAULT,
 			OMAP_RAM_CONSOLE_SIZE_DEFAULT);
 

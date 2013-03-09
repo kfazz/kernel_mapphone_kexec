@@ -55,6 +55,9 @@ MODULE_PARM_DESC(grain, "Granularity (bytes)");
 module_param_named(alloc_debug, tiler_alloc_debug, uint, 0644);
 MODULE_PARM_DESC(alloc_debug, "Allocation debug flag");
 
+struct tiler_dev {
+	struct cdev cdev;
+};
 static struct dentry *dbgfs;
 static struct dentry *dbg_map;
 
@@ -64,14 +67,9 @@ static struct list_head blocks;		/* all tiler blocks */
 static struct list_head orphan_areas;	/* orphaned 2D areas */
 static struct list_head orphan_onedim;	/* orphaned 1D areas */
 
-#ifdef CONFIG_TILER_ENABLE_USERSPACE
-struct tiler_dev {
-	struct cdev cdev;
-};
 static s32 tiler_major;
 static s32 tiler_minor;
 static struct tiler_dev *tiler_device;
-#endif
 static struct class *tilerdev_class;
 static struct mutex mtx;
 static struct tcm *tcm[TILER_FORMATS];
@@ -79,7 +77,6 @@ static struct tmm *tmm[TILER_FORMATS];
 static u32 *dmac_va;
 static dma_addr_t dmac_pa;
 static DEFINE_MUTEX(dmac_mtx);
-static dev_t dev;
 
 /*
  *  TMM connectors
@@ -424,9 +421,8 @@ static void release_gi(struct gid_info *gi)
 
 /* allocate an reserved area of size, alignment and link it to gi */
 /* leaves mutex locked to be able to add block to area */
-static struct area_info *area_new_m(enum tiler_fmt fmt, u16 width, u16 height,
-					u16 align, struct gid_info *gi,
-					u32 alloc_flags)
+static struct area_info *area_new_m(u16 width, u16 height, u16 align,
+				  struct tcm *tcm, struct gid_info *gi)
 {
 	struct area_info *ai = kmalloc(sizeof(*ai), GFP_KERNEL);
 	if (!ai)
@@ -437,15 +433,12 @@ static struct area_info *area_new_m(enum tiler_fmt fmt, u16 width, u16 height,
 	INIT_LIST_HEAD(&ai->blocks);
 
 	/* reserve an allocation area */
-	if (tcm_reserve_2d(tcm[fmt], width, height, align, &ai->area)) {
+	if (tcm_reserve_2d(tcm, width, height, align, &ai->area)) {
 		kfree(ai);
 		return NULL;
 	}
 
 	ai->gi = gi;
-	if (alloc_flags & FLAGS_ALLOC_NO_COLOCATE)
-		ai->allowed_modes |= 1 << fmt;
-
 	mutex_lock(&mtx);
 	list_add_tail(&ai->by_gid, &gi->areas);
 	return ai;
@@ -469,24 +462,13 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 
 	/* slot width, height, and row size */
 	u32 slot_row, min_align;
-	const struct tiler_geom *g = tiler.geom(fmt);
+	const struct tiler_geom *g;
 
-	/* width and height must be non-zero, fmt must be valid */
-	if (!width || !height || !g)
+	/* width and height must be positive */
+	if (!width || !height)
 		return -EINVAL;
 
-	/* Note: Some values have been validated prior to calling this function
-	   alignment is always <= PAGE_SIZE
-	   offs is always < PAGE_SIZE
-	   This is a requirement due to some u32->u16 conversions and avoids
-	   having to worry about overflow while doing calculations
-	*/
-
 	if (fmt == TILFMT_PAGE) {
-		/* check for invalid allocation size, width > container size */
-		if (width > (PAGE_SIZE * tiler.width * tiler.height))
-			return -ENOMEM;
-
 		/* adjust size to accomodate offset, only do page alignment */
 		*align = PAGE_SIZE;
 		*remainder = *offs & ~PAGE_MASK; /* calculate remainder */
@@ -495,15 +477,17 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 		/* for 1D area keep the height (1), width is in tiler slots */
 		*x_area = DIV_ROUND_UP(width , tiler.page);
 		*y_area = *band = 1;
+
+		if (*x_area * *y_area > tiler.width * tiler.height)
+			return -ENOMEM;
 		return 0;
 	}
 
 	*remainder = 0;
 
-	/* validate against max width and height values to
-	   guard against overflow */
-	if (width > (g->slot_w * tiler.width) ||
-		height > (g->slot_h * tiler.height))
+	/* format must be valid */
+	g = tiler.geom(fmt);
+	if (!g)
 		return -EINVAL;
 
 	/* get the # of bytes per row in 1 slot */
@@ -669,9 +653,8 @@ struct mem_info *_m_add2area(struct mem_info *mi, struct area_info *ai,
 	return mi;
 }
 
-static struct mem_info *get_2d_area(enum tiler_fmt fmt, u16 w, u16 h, u16 align,
-					u16 offs, u16 band, struct gid_info *gi,
-					u32 alloc_flags)
+static struct mem_info *get_2d_area(u16 w, u16 h, u16 align, u16 offs, u16 band,
+					struct gid_info *gi, struct tcm *tcm)
 {
 	struct area_info *ai = NULL;
 	struct mem_info *mi = NULL;
@@ -683,7 +666,7 @@ static struct mem_info *get_2d_area(enum tiler_fmt fmt, u16 w, u16 h, u16 align,
 	/* see if there is available prereserved space */
 	mutex_lock(&mtx);
 	list_for_each_entry(mi, &gi->reserved, global) {
-		if (mi->area.tcm == tcm[fmt] &&
+		if (mi->area.tcm == tcm &&
 		    tcm_aheight(mi->area) == h &&
 		    tcm_awidth(mi->area) == w &&
 		    (mi->area.p0.x & (align - 1)) == offs) {
@@ -715,10 +698,8 @@ static struct mem_info *get_2d_area(enum tiler_fmt fmt, u16 w, u16 h, u16 align,
 	/* this sets x, ai and before */
 	mutex_lock(&mtx);
 	list_for_each_entry(ai, &gi->areas, by_gid) {
-		if (ai->area.tcm == tcm[fmt] &&
-		    tcm_aheight(ai->area) == h &&
-		    (!ai->allowed_modes ||
-			(ai->allowed_modes & (1 << fmt)))) {
+		if (ai->area.tcm == tcm &&
+		    tcm_aheight(ai->area) == h) {
 			x = _m_blk_find_fit(w, align, offs, ai, &before);
 			if (x) {
 				_m_add2area(mi, ai, x - w, w, before);
@@ -739,8 +720,8 @@ static struct mem_info *get_2d_area(enum tiler_fmt fmt, u16 w, u16 h, u16 align,
 	mutex_unlock(&mtx);
 
 	/* if no area fit, reserve a new one */
-	ai = area_new_m(fmt, ALIGN(w + offs, max(band, align)), h,
-		      max(band, align), gi, alloc_flags);
+	ai = area_new_m(ALIGN(w + offs, max(band, align)), h,
+		      max(band, align), tcm, gi);
 	if (ai) {
 		_m_add2area(mi, ai, ai->area.p0.x + offs, w, &ai->blocks);
 		if (tiler_alloc_debug & 1)
@@ -775,8 +756,8 @@ static s32 lay_2d(enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
 
 	/* calculate dimensions, band, offs, and alignment in slots */
 	/* reserve an area */
-	ai = area_new_m(fmt, ALIGN(w_res + offs, max(band, align)), h,
-			max(band, align), gi, 0);
+	ai = area_new_m(ALIGN(w_res + offs, max(band, align)), h,
+			max(band, align), tcm[fmt], gi);
 	if (!ai)
 		return -ENOMEM;
 
@@ -813,7 +794,7 @@ static s32 lay_nv12(int n, u16 w, u16 w1, u16 h, struct gid_info *gi, u8 *p)
 	struct list_head *pos;
 
 	/* reserve area */
-	ai = area_new_m(TILFMT_8BIT, w, h, a, gi, 0);
+	ai = area_new_m(w, h, a, TILFMT_8BIT, gi);
 	if (!ai)
 		return -ENOMEM;
 
@@ -1168,8 +1149,7 @@ static void fill_block_info(struct mem_info *i, struct tiler_block_info *blk)
  *  ==========================================================================
  */
 static struct mem_info *alloc_area(enum tiler_fmt fmt, u32 width, u32 height,
-				   struct gid_info *gi, u16 align, u16 offs,
-					u32 alloc_flags)
+				   struct gid_info *gi, u16 align, u16 offs)
 {
 	u16 x, y, band, remainder = 0;
 	struct mem_info *mi = NULL;
@@ -1201,7 +1181,7 @@ static struct mem_info *alloc_area(enum tiler_fmt fmt, u32 width, u32 height,
 		mi->parent = gi;
 		list_add(&mi->by_area, &gi->onedim);
 	} else {
-		mi = get_2d_area(fmt, x, y, align, offs, band, gi, alloc_flags);
+		mi = get_2d_area(x, y, align, offs, band, gi, tcm[fmt]);
 		if (!mi)
 			return NULL;
 
@@ -1226,7 +1206,6 @@ static struct mem_info *alloc_block_area(enum tiler_fmt fmt, u32 width,
 {
 	struct mem_info *mi = NULL;
 	struct gid_info *gi = NULL;
-	unsigned int alloc_flags = 0;
 
 	/* validate parameters */
 	if (!si || align > PAGE_SIZE || offs >= (align ? : PAGE_SIZE))
@@ -1240,11 +1219,8 @@ static struct mem_info *alloc_block_area(enum tiler_fmt fmt, u32 width,
 	if (!gi)
 		return ERR_PTR(-ENOMEM);
 
-	if (align && align < PAGE_SIZE)
-		alloc_flags |= FLAGS_ALLOC_NO_COLOCATE;
-
 	/* reserve area in tiler container */
-	mi = alloc_area(fmt, width, height, gi, align, offs, alloc_flags);
+	mi = alloc_area(fmt, width, height, gi, align, offs);
 	if (!mi) {
 		mutex_lock(&mtx);
 		gi->refs--;
@@ -1592,6 +1568,7 @@ static struct platform_driver tiler_driver_ldm = {
 
 static s32 __init tiler_init(void)
 {
+	dev_t dev  = 0;
 	s32 r = -1;
 	struct device *device = NULL;
 	struct tcm_pt div_pt;
@@ -1667,13 +1644,8 @@ static s32 __init tiler_init(void)
 	tiler.nv12_packed = tcm[TILFMT_8BIT] == tcm[TILFMT_16BIT];
 #endif
 
-	if (!sita || !tmm_pat) {
-		r = -ENOMEM;
-		goto error;
-	}
-#ifdef CONFIG_TILER_ENABLE_USERSPACE
 	tiler_device = kmalloc(sizeof(*tiler_device), GFP_KERNEL);
-	if (!tiler_device) {
+	if (!tiler_device || !sita || !tmm_pat) {
 		r = -ENOMEM;
 		goto error;
 	}
@@ -1694,7 +1666,6 @@ static s32 __init tiler_init(void)
 	r = cdev_add(&tiler_device->cdev, dev, 1);
 	if (r)
 		printk(KERN_ERR "cdev_add():failed\n");
-#endif
 
 	tilerdev_class = class_create(THIS_MODULE, "tiler");
 
@@ -1730,9 +1701,7 @@ static s32 __init tiler_init(void)
 error:
 	/* TODO: error handling for device registration */
 	if (r) {
-#ifdef CONFIG_TILER_ENABLE_USERSPACE
 		kfree(tiler_device);
-#endif
 		tcm_deinit(sita);
 		tmm_deinit(tmm_pat);
 		dma_free_coherent(NULL, tiler.width * tiler.height *
@@ -1778,11 +1747,9 @@ static void __exit tiler_exit(void)
 
 	mutex_destroy(&mtx);
 	platform_driver_unregister(&tiler_driver_ldm);
-#ifdef CONFIG_TILER_ENABLE_USERSPACE
 	cdev_del(&tiler_device->cdev);
 	kfree(tiler_device);
-#endif
-	device_destroy(tilerdev_class, dev);
+	device_destroy(tilerdev_class, MKDEV(tiler_major, tiler_minor));
 	class_destroy(tilerdev_class);
 }
 
